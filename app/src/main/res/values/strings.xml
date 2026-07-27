@@ -14,7 +14,7 @@
     <string name="not_selected">Not selected</string>
     <string name="player_controls">Player scene controls</string>
     <string name="player_controls_description">One finger: orbit. Two fingers: pan and zoom. Disable this option when the shader has its own iMouse controls.</string>
-    <string name="show_stats">Show FPS</string>
+    <string name="show_stats">Show extended statistics</string>
     <string name="reset_camera">Reset camera</string>
     <string name="reset_time">Reset time</string>
     <string name="shader_error">Shader compilation error</string>
@@ -23,8 +23,46 @@
     <string name="shader_loaded">Shader loaded</string>
     <string name="shader_read_error">Unable to read the shader file</string>
     <string name="texture_read_error">Unable to read the texture</string>
-    <string name="about_limits">Android version supports GLSL ES / ShaderToy. HLSL and Direct3D 12 are not available on Android.</string>
+    <string name="about_limits">Vulkan mode is implemented through ANGLE: the app keeps GLES compatibility while ANGLE executes it on Vulkan. A native Vulkan renderer and ShaderToy Buffer A-D are not implemented yet.</string>
     <string name="sphere_offset">Sphere vertical offset</string>
     <string name="enter_fullscreen">Enter fullscreen</string>
     <string name="exit_fullscreen">Exit fullscreen</string>
+
+    <string name="optimization_profiles">Quick profiles</string>
+    <string name="profile_original">Original quality — 100%, no adaptation</string>
+    <string name="profile_balanced">Balanced — 75%, dynamic resolution</string>
+    <string name="profile_performance">Maximum FPS — 67%, fewer steps, mediump</string>
+
+    <string name="graphics_api">Graphics API</string>
+    <string name="graphics_backend">Rendering backend</string>
+    <string name="graphics_backend_description">OpenGL ES uses the native device driver. Vulkan runs the same GLES renderer through ANGLE/Vulkan and restarts the app.</string>
+    <string name="backend_opengl">OpenGL ES</string>
+    <string name="backend_vulkan_angle">Vulkan through ANGLE</string>
+    <string name="active_backend">Actually active: %1$s</string>
+    <string name="angle_permission_required">Android requires a one-time ADB permission before the app can switch the graphics driver:\n\n%1$s\n\nRun it and select the backend again.</string>
+    <string name="vulkan_unavailable">Hardware Vulkan support was not detected or Android is older than 15.</string>
+    <string name="backend_apply_failed">Unable to apply backend: %1$s</string>
+
+    <string name="render_resolution">Resolution and frame rate</string>
+    <string name="render_scale">Internal render scale: %1$d%%</string>
+    <string name="dynamic_resolution">Dynamic resolution</string>
+    <string name="dynamic_resolution_description">Automatically adjusts internal resolution using GPU time and the target FPS.</string>
+    <string name="minimum_render_scale">Minimum scale: %1$d%%</string>
+    <string name="target_fps">Target FPS</string>
+    <string name="target_fps_description">Used for frame pacing and as the dynamic-resolution target.</string>
+    <string name="upscale_filter">Upscaling filter</string>
+    <string name="upscale_filter_description">Linear smooths the image; Nearest is sharper but exposes pixels.</string>
+    <string name="filter_linear">Linear</string>
+    <string name="filter_nearest">Nearest</string>
+
+    <string name="shader_optimization">Shader optimization</string>
+    <string name="shader_quality">Step-count profile</string>
+    <string name="shader_quality_description">Targets known NUM_STEPS, ITER_GEOMETRY, ITER_FRAGMENT, and MAX_STEPS constants. Original mode leaves source unchanged.</string>
+    <string name="quality_original">Original</string>
+    <string name="quality_balanced">Balanced</string>
+    <string name="quality_performance">Performance</string>
+    <string name="shader_precision">Default float precision</string>
+    <string name="shader_precision_description">Mediump may improve mobile performance, but water, long rays, and large coordinates can show artifacts.</string>
+    <string name="precision_high">Highp — compatibility</string>
+    <string name="precision_medium">Mediump — faster</string>
 </resources>

@@ -1,5 +1,8 @@
 package com.goodwin.shaderplayer.rendering
 
+import com.goodwin.shaderplayer.domain.ShaderPrecision
+import com.goodwin.shaderplayer.domain.ShaderQualityPreset
+
 /**
  * Приводит ShaderToy/Bonzomatic/desktop GLSL к GLSL ES 3.00.
  *
@@ -14,8 +17,13 @@ class ShaderSourceAdapter {
         val cameraPatched: Boolean,
     )
 
-    fun adapt(source: String, playerControlsEnabled: Boolean): Result {
-        val sourceParts = splitDesktopDirectives(source)
+    fun adapt(
+        source: String,
+        playerControlsEnabled: Boolean,
+        qualityPreset: ShaderQualityPreset = ShaderQualityPreset.ORIGINAL,
+        precision: ShaderPrecision = ShaderPrecision.HIGH,
+    ): Result {
+        val sourceParts = splitDesktopDirectives(applyQualityPreset(source, qualityPreset))
         val originalBody = sourceParts.body
         val isShaderToy = MAIN_IMAGE_REGEX.containsMatchIn(originalBody)
         val oneDimensionalSamplers = findOneDimensionalSamplers(originalBody)
@@ -57,7 +65,12 @@ class ShaderSourceAdapter {
 
         val declarations = buildString {
             appendLine("#version 300 es")
-            appendLine("precision highp float;")
+            appendLine(
+                when (precision) {
+                    ShaderPrecision.HIGH -> "precision highp float;"
+                    ShaderPrecision.MEDIUM -> "precision mediump float;"
+                },
+            )
             appendLine("precision highp int;")
             appendLine("#ifndef iGlobalTime")
             appendLine("#define iGlobalTime iTime")
@@ -116,6 +129,63 @@ class ShaderSourceAdapter {
             usesSphereOffset = IDENTIFIER_SPHERE_OFFSET.containsMatchIn(body),
             cameraPatched = cameraPatched,
         )
+    }
+
+    /**
+     * Уменьшает только известные константы стоимости ray marching.
+     * Исходный режим не меняет пользовательский код.
+     */
+    private fun applyQualityPreset(
+        source: String,
+        preset: ShaderQualityPreset,
+    ): String {
+        if (preset == ShaderQualityPreset.ORIGINAL) return source
+
+        val limits = when (preset) {
+            ShaderQualityPreset.ORIGINAL -> emptyMap()
+            ShaderQualityPreset.BALANCED -> mapOf(
+                "NUM_STEPS" to 24,
+                "MAX_STEPS" to 72,
+                "RAYMARCH_STEPS" to 72,
+                "ITER_GEOMETRY" to 2,
+                "ITER_FRAGMENT" to 4,
+                "AA" to 2,
+            )
+            ShaderQualityPreset.PERFORMANCE -> mapOf(
+                "NUM_STEPS" to 18,
+                "MAX_STEPS" to 48,
+                "RAYMARCH_STEPS" to 48,
+                "ITER_GEOMETRY" to 2,
+                "ITER_FRAGMENT" to 3,
+                "AA" to 1,
+            )
+        }
+
+        var result = source
+        limits.forEach { (name, limit) ->
+            val constPattern = Regex(
+                "(\\bconst\\s+int\\s+${Regex.escape(name)}\\s*=\\s*)(\\d+)(\\s*;)",
+            )
+            result = constPattern.replace(result) { match ->
+                val original = match.groupValues[2].toIntOrNull() ?: return@replace match.value
+                match.groupValues[1] + minOf(original, limit) + match.groupValues[3]
+            }
+
+            val definePattern = Regex(
+                "(?m)^(\\s*#define\\s+${Regex.escape(name)}\\s+)(\\d+)(\\s*(?://.*)?)$",
+            )
+            result = definePattern.replace(result) { match ->
+                val original = match.groupValues[2].toIntOrNull() ?: return@replace match.value
+                match.groupValues[1] + minOf(original, limit) + match.groupValues[3]
+            }
+        }
+
+        if (preset == ShaderQualityPreset.PERFORMANCE) {
+            result = Regex("(?m)^(\\s*#define\\s+CLOUD_QUALITY\\s+)\\d+").replace(result) {
+                it.groupValues[1] + "0"
+            }
+        }
+        return result
     }
 
     private fun StringBuilder.appendMissingUniform(

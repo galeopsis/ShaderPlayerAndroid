@@ -1,6 +1,7 @@
 package com.goodwin.shaderplayer.rendering
 
 import android.graphics.Bitmap
+import com.goodwin.shaderplayer.domain.RenderOptimizationSettings
 import com.goodwin.shaderplayer.domain.RendererStats
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -15,11 +16,13 @@ sealed interface RenderCommand {
         val source: String,
         val displayName: String,
         val playerControlsEnabled: Boolean,
+        val optimization: RenderOptimizationSettings,
         val requestId: Long? = null,
     ) : RenderCommand
 
     data class SetPaused(val paused: Boolean) : RenderCommand
     data class SetPlayerControls(val enabled: Boolean) : RenderCommand
+    data class SetOptimization(val settings: RenderOptimizationSettings) : RenderCommand
     data class SetTexture(val channel: Int, val bitmap: Bitmap) : RenderCommand
     data class ClearTexture(val channel: Int) : RenderCommand
     data class SetSphereOffset(val value: Float) : RenderCommand
@@ -41,7 +44,7 @@ sealed interface ShaderLoadResult {
     ) : ShaderLoadResult
 }
 
-/** Связывает Compose/ViewModel с GLSurfaceView без прямой зависимости UI от GLES. */
+/** Связывает Compose/ViewModel с SurfaceView без прямой зависимости UI от GLES. */
 class ShaderRenderController {
     private val _commands = Channel<RenderCommand>(Channel.UNLIMITED)
     val commands: Flow<RenderCommand> = _commands.receiveAsFlow()

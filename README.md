@@ -109,5 +109,30 @@ init_gradle_wrapper.bat
 - Kotlin 2.3.10;
 - Compose BOM 2026.06.00;
 - Activity Compose 1.13.0;
-- Lifecycle 2.11.0;
+- Lifecycle 2.10.0;
 - DataStore 1.2.1.
+
+## Настройки производительности
+
+В меню настроек добавлены:
+
+- OpenGL ES (native driver) и Vulkan через ANGLE;
+- внутренний render scale 50–100%;
+- динамическое разрешение с минимальным масштабом;
+- целевые 30/60/90/120 FPS через `Surface.setFrameRate`;
+- Linear/Nearest upscale;
+- профили количества ray-marching шагов;
+- highp/mediump precision;
+- расширенная статистика FPS, GPU time, фактического backend и внутреннего разрешения.
+
+На Android 15 и новее Vulkan-режим сохраняет текущую GLES/ShaderToy-совместимость и переключает системный
+GLES-драйвер приложения на ANGLE. Android разрешает менять эту настройку только
+отладочному приложению с `WRITE_SECURE_SETTINGS`. Один раз выполните:
+
+```bat
+adb shell pm grant com.goodwin.shaderplayer android.permission.WRITE_SECURE_SETTINGS
+```
+
+После этого выберите backend в приложении. Плеер автоматически перезапустится.
+Строка статистики показывает фактически активный backend, поэтому можно сразу
+проверить, был ли загружен ANGLE/Vulkan.

@@ -14,7 +14,7 @@
     <string name="not_selected">Не выбрана</string>
     <string name="player_controls">Управление сценой плеера</string>
     <string name="player_controls_description">Один палец — orbit. Два пальца — pan и zoom. Отключи настройку, если шейдер использует собственное управление через iMouse.</string>
-    <string name="show_stats">Показывать FPS</string>
+    <string name="show_stats">Показывать расширенную статистику</string>
     <string name="reset_camera">Сбросить камеру</string>
     <string name="reset_time">Сбросить время</string>
     <string name="shader_error">Ошибка компиляции шейдера</string>
@@ -23,8 +23,46 @@
     <string name="shader_loaded">Шейдер загружен</string>
     <string name="shader_read_error">Не удалось прочитать файл шейдера</string>
     <string name="texture_read_error">Не удалось прочитать текстуру</string>
-    <string name="about_limits">Android-версия поддерживает GLSL ES и ShaderToy. HLSL и Direct3D 12 на Android недоступны.</string>
+    <string name="about_limits">Режим Vulkan реализован через ANGLE: приложение сохраняет GLES-совместимость, но команды исполняются через Vulkan backend ANGLE. Native Vulkan renderer и ShaderToy Buffer A–D пока не реализованы.</string>
     <string name="sphere_offset">Вертикальное смещение сферы</string>
     <string name="enter_fullscreen">На весь экран</string>
     <string name="exit_fullscreen">Выйти из полноэкранного режима</string>
+
+    <string name="optimization_profiles">Быстрые профили</string>
+    <string name="profile_original">Исходное качество — 100%, без адаптации</string>
+    <string name="profile_balanced">Сбалансированный — 75%, динамическое разрешение</string>
+    <string name="profile_performance">Максимальный FPS — 67%, меньше шагов, mediump</string>
+
+    <string name="graphics_api">Графический API</string>
+    <string name="graphics_backend">Backend рендера</string>
+    <string name="graphics_backend_description">OpenGL ES использует штатный драйвер устройства. Vulkan запускает тот же GLES renderer через ANGLE/Vulkan и требует перезапуска приложения.</string>
+    <string name="backend_opengl">OpenGL ES</string>
+    <string name="backend_vulkan_angle">Vulkan через ANGLE</string>
+    <string name="active_backend">Фактически активен: %1$s</string>
+    <string name="angle_permission_required">Для переключения backend Android требует одноразово выдать приложению системное разрешение через ADB:\n\n%1$s\n\nПосле команды снова выбери backend в настройках.</string>
+    <string name="vulkan_unavailable">На устройстве не обнаружена аппаратная поддержка Vulkan или версия Android ниже 15.</string>
+    <string name="backend_apply_failed">Не удалось применить backend: %1$s</string>
+
+    <string name="render_resolution">Разрешение и частота кадров</string>
+    <string name="render_scale">Масштаб внутреннего рендера: %1$d%%</string>
+    <string name="dynamic_resolution">Динамическое разрешение</string>
+    <string name="dynamic_resolution_description">Плеер автоматически уменьшает или повышает внутреннее разрешение по времени GPU и целевому FPS.</string>
+    <string name="minimum_render_scale">Минимальный масштаб: %1$d%%</string>
+    <string name="target_fps">Целевой FPS</string>
+    <string name="target_fps_description">Используется для frame pacing и как цель динамического разрешения.</string>
+    <string name="upscale_filter">Фильтр масштабирования</string>
+    <string name="upscale_filter_description">Linear сглаживает изображение; Nearest быстрее и резче, но показывает пиксели.</string>
+    <string name="filter_linear">Linear</string>
+    <string name="filter_nearest">Nearest</string>
+
+    <string name="shader_optimization">Оптимизация шейдера</string>
+    <string name="shader_quality">Профиль количества шагов</string>
+    <string name="shader_quality_description">Для известных констант NUM_STEPS, ITER_GEOMETRY, ITER_FRAGMENT и MAX_STEPS. Исходный режим не изменяет код.</string>
+    <string name="quality_original">Исходный</string>
+    <string name="quality_balanced">Сбалансированный</string>
+    <string name="quality_performance">Производительность</string>
+    <string name="shader_precision">Точность float по умолчанию</string>
+    <string name="shader_precision_description">Mediump может ускорить мобильный GPU, но для длинных лучей, воды и больших координат возможны артефакты.</string>
+    <string name="precision_high">Highp — совместимость</string>
+    <string name="precision_medium">Mediump — быстрее</string>
 </resources>

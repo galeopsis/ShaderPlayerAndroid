@@ -1,12 +1,17 @@
 package com.goodwin.shaderplayer
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.os.Process
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -16,6 +21,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.goodwin.shaderplayer.ui.ShaderPlayerScreen
 import com.goodwin.shaderplayer.ui.ShaderPlayerViewModel
 import com.goodwin.shaderplayer.ui.theme.ShaderPlayerTheme
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 /** Единственная Activity приложения; весь UI построен на Jetpack Compose. */
 class MainActivity : ComponentActivity() {
@@ -31,6 +38,10 @@ class MainActivity : ComponentActivity() {
         isFullscreen = savedInstanceState?.getBoolean(KEY_FULLSCREEN)
             ?: (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
         applyFullscreenMode(isFullscreen)
+
+        lifecycleScope.launch {
+            viewModel.restartRequests.collect { restartApplication() }
+        }
 
         setContent {
             ShaderPlayerTheme {
@@ -81,6 +92,27 @@ class MainActivity : ComponentActivity() {
             }
         }
         viewModel.openShader(uri)
+    }
+
+    /** Полностью перезапускает процесс, чтобы Android заново выбрал GLES/ANGLE-драйвер. */
+    private fun restartApplication() {
+        val restartIntent = Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            1001,
+            restartIntent,
+            PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val alarmManager = getSystemService(AlarmManager::class.java)
+        alarmManager.set(
+            AlarmManager.ELAPSED_REALTIME,
+            SystemClock.elapsedRealtime() + 300L,
+            pendingIntent,
+        )
+        finishAffinity()
+        Process.killProcess(Process.myPid())
     }
 
     /** Включает или выключает полноэкранный режим и обновляет Compose-интерфейс. */
