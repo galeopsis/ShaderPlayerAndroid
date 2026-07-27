@@ -29,6 +29,7 @@ class ShaderSourceAdapter {
         val oneDimensionalSamplers = findOneDimensionalSamplers(originalBody)
 
         var body = rewriteLegacyTextureSyntax(originalBody, oneDimensionalSamplers)
+        body = rewriteCStyleArrayInitializers(body)
             .replace(Regex("\\blayout\\s*\\([^)]*location\\s*=\\s*\\d+[^)]*\\)\\s*in\\s+"), "in ")
             .replace(Regex("\\btexture2D\\s*\\("), "texture(")
             .replace(Regex("\\btextureCube\\s*\\("), "texture(")
@@ -40,18 +41,21 @@ class ShaderSourceAdapter {
          * иначе uint/bitwise-код может быть повреждён (например, 1u -> 1.0u).
          */
         if (!isShaderToy) {
-            val constIntNames = findConstIntNames(body) + findIntegerMacroNames(body)
-            val dynamicGlobals = rewriteDynamicGlobalInitializers(body, constIntNames)
+            val integerSymbols =
+                findConstIntNames(body) +
+                    findIntegerMacroNames(body) +
+                    findIntegerSymbols(body)
+            val dynamicGlobals = rewriteDynamicGlobalInitializers(body, integerSymbols)
             body = dynamicGlobals.source
-            body = rewriteFloatingPointInitializers(body, constIntNames)
+            body = rewriteFloatingPointInitializers(body, integerSymbols)
 
             val floatSymbols = findFloatingPointSymbols(body)
             val functionSignatures = findFunctionSignatures(body)
-            body = rewriteTypedFunctionCalls(body, functionSignatures, floatSymbols, constIntNames)
-            body = rewriteFloatingPointBuiltins(body, constIntNames)
-            body = rewriteFloatingPointAssignments(body, floatSymbols, constIntNames)
+            body = rewriteTypedFunctionCalls(body, functionSignatures, floatSymbols, integerSymbols)
+            body = rewriteFloatingPointBuiltins(body, integerSymbols)
+            body = rewriteFloatingPointAssignments(body, floatSymbols, integerSymbols)
             body = rewriteFloatingPointConditions(body, floatSymbols)
-            body = rewriteFloatingPointReturns(body, constIntNames)
+            body = rewriteFloatingPointReturns(body, integerSymbols)
             body = injectDynamicGlobalAssignments(body, dynamicGlobals.assignments)
         }
 
@@ -97,6 +101,18 @@ class ShaderSourceAdapter {
             appendMissingUniform(body, "iChannelResolution", "uniform vec3 iChannelResolution[4];")
             for (index in 0..3) {
                 appendMissingUniform(body, "iChannel$index", "uniform sampler2D iChannel$index;")
+            }
+
+            // Стандартные имена текстур Bonzomatic. В старых шейдерах их
+            // объявления часто закомментированы, хотя сами sampler-переменные
+            // продолжают использоваться в коде. На desktop их предоставляет
+            // окружение Bonzomatic, поэтому Android-плеер объявляет аналоги.
+            LEGACY_SAMPLER_BINDINGS.keys.forEach { samplerName ->
+                appendMissingUniform(
+                    body,
+                    samplerName,
+                    "uniform sampler2D $samplerName;",
+                )
             }
 
             if (playerControlsEnabled) {
@@ -194,9 +210,65 @@ class ShaderSourceAdapter {
         declaration: String,
     ) {
         val declarationRegex = Regex("\\buniform\\s+[^;]*\\b${Regex.escape(name)}\\b")
-        if (!declarationRegex.containsMatchIn(source)) {
+        // Комментарии не являются объявлениями. Раньше строка вида
+        // // uniform sampler2D texTex2; блокировала автоматическое добавление
+        // sampler и приводила к ошибке undeclared identifier.
+        if (!declarationRegex.containsMatchIn(removeComments(source))) {
             appendLine(declaration)
         }
+    }
+
+    private fun removeComments(source: String): String {
+        val result = StringBuilder(source.length)
+        var index = 0
+        var lineComment = false
+        var blockComment = false
+
+        while (index < source.length) {
+            val current = source[index]
+            val next = source.getOrNull(index + 1)
+
+            when {
+                lineComment -> {
+                    if (current == '\n') {
+                        lineComment = false
+                        result.append('\n')
+                    } else {
+                        result.append(' ')
+                    }
+                    index++
+                }
+
+                blockComment -> {
+                    if (current == '*' && next == '/') {
+                        result.append("  ")
+                        index += 2
+                        blockComment = false
+                    } else {
+                        result.append(if (current == '\n') '\n' else ' ')
+                        index++
+                    }
+                }
+
+                current == '/' && next == '/' -> {
+                    result.append("  ")
+                    index += 2
+                    lineComment = true
+                }
+
+                current == '/' && next == '*' -> {
+                    result.append("  ")
+                    index += 2
+                    blockComment = true
+                }
+
+                else -> {
+                    result.append(current)
+                    index++
+                }
+            }
+        }
+        return result.toString()
     }
 
     private data class SourceParts(
@@ -227,6 +299,39 @@ class ShaderSourceAdapter {
         return SourceParts(body = body)
     }
 
+    /**
+     * GLSL desktop допускает C-подобный initializer массива:
+     * `vec3 values[4] = { ... };`. В GLSL ES 3.00 требуется конструктор
+     * массива `vec3[4](...)`.
+     */
+    private fun rewriteCStyleArrayInitializers(source: String): String {
+        val replacements = mutableListOf<Replacement>()
+
+        for (match in C_STYLE_ARRAY_INITIALIZER.findAll(source)) {
+            val type = match.groupValues[1]
+            val size = match.groupValues[3].trim()
+            val openBrace = source.indexOf('{', match.range.first)
+            if (openBrace < 0) continue
+            val closeBrace = findMatching(source, openBrace, '{', '}') ?: continue
+
+            val semicolon = skipWhitespace(source, closeBrace + 1)
+            if (semicolon >= source.length || source[semicolon] != ';') continue
+
+            val elements = source
+                .substring(openBrace + 1, closeBrace)
+                .replace(Regex(",\\s*$"), "")
+                .trim()
+
+            replacements += Replacement(
+                start = openBrace,
+                endExclusive = closeBrace + 1,
+                value = "$type[$size]($elements)",
+            )
+        }
+
+        return applyReplacements(source, replacements)
+    }
+
     private fun findOneDimensionalSamplers(source: String): Set<String> {
         return SAMPLER_1D_DECLARATION.findAll(source)
             .map { it.groupValues[1] }
@@ -241,6 +346,13 @@ class ShaderSourceAdapter {
 
     private fun findIntegerMacroNames(source: String): Set<String> {
         return INTEGER_MACRO_DECLARATION.findAll(source)
+            .map { it.groupValues[1] }
+            .toSet()
+    }
+
+    /** Находит локальные, глобальные и параметрические int/uint-переменные. */
+    private fun findIntegerSymbols(source: String): Set<String> {
+        return INTEGER_SYMBOL_DECLARATION.findAll(removeComments(source))
             .map { it.groupValues[1] }
             .toSet()
     }
@@ -475,49 +587,78 @@ class ShaderSourceAdapter {
         expression: String,
         constIntNames: Set<String>,
     ): String {
-        val output = StringBuilder(expression.length + 16)
+        val source = rewriteMixedFloatingModulo(expression, constIntNames)
+        val output = StringBuilder(source.length + 24)
+        val functionStack = mutableListOf<String?>()
+        var pendingIdentifier: String? = null
         var index = 0
         var bracketDepth = 0
 
-        while (index < expression.length) {
-            val character = expression[index]
+        while (index < source.length) {
+            val character = source[index]
+            val protectedConstructor = functionStack.any {
+                it in INTEGER_PRESERVING_CONSTRUCTORS
+            }
+
             when {
                 character == '[' -> {
                     bracketDepth++
+                    pendingIdentifier = null
                     output.append(character)
                     index++
                 }
 
                 character == ']' -> {
                     bracketDepth = (bracketDepth - 1).coerceAtLeast(0)
+                    pendingIdentifier = null
+                    output.append(character)
+                    index++
+                }
+
+                character == '(' -> {
+                    functionStack += pendingIdentifier
+                    pendingIdentifier = null
+                    output.append(character)
+                    index++
+                }
+
+                character == ')' -> {
+                    if (functionStack.isNotEmpty()) functionStack.removeLast()
+                    pendingIdentifier = null
                     output.append(character)
                     index++
                 }
 
                 character.isLetter() || character == '_' -> {
-                    val start = index
+                    val tokenStart = index
                     index++
-                    while (index < expression.length &&
-                        (expression[index].isLetterOrDigit() || expression[index] == '_')
+                    while (index < source.length &&
+                        (source[index].isLetterOrDigit() || source[index] == '_')
                     ) {
                         index++
                     }
-                    val identifier = expression.substring(start, index)
+                    val identifier = source.substring(tokenStart, index)
                     val alreadyCasted = output.endsWithIgnoringWhitespace("float(")
-                    if (bracketDepth == 0 && identifier in constIntNames && !alreadyCasted) {
+                    if (
+                        bracketDepth == 0 &&
+                        !protectedConstructor &&
+                        identifier in constIntNames &&
+                        !alreadyCasted
+                    ) {
                         output.append("float(").append(identifier).append(')')
                     } else {
                         output.append(identifier)
                     }
+                    pendingIdentifier = identifier
                 }
 
-                character.isDigit() && isNumberStart(expression, index) -> {
-                    val start = index
+                character.isDigit() && isNumberStart(source, index) -> {
+                    val tokenStart = index
                     var hasDot = false
                     var hasExponent = false
                     index++
-                    while (index < expression.length) {
-                        val current = expression[index]
+                    while (index < source.length) {
+                        val current = source[index]
                         when {
                             current.isDigit() -> index++
                             current == '.' -> {
@@ -527,8 +668,8 @@ class ShaderSourceAdapter {
                             current == 'e' || current == 'E' -> {
                                 hasExponent = true
                                 index++
-                                if (index < expression.length &&
-                                    (expression[index] == '+' || expression[index] == '-')
+                                if (index < source.length &&
+                                    (source[index] == '+' || source[index] == '-')
                                 ) {
                                     index++
                                 }
@@ -538,23 +679,55 @@ class ShaderSourceAdapter {
                             else -> break
                         }
                     }
-                    val number = expression.substring(start, index)
+                    val number = source.substring(tokenStart, index)
                     output.append(number)
                     val suffix = number.lastOrNull()?.lowercaseChar()
-                    if (bracketDepth == 0 && !hasDot && !hasExponent &&
-                        suffix != 'f' && suffix != 'u'
+                    if (
+                        bracketDepth == 0 &&
+                        !protectedConstructor &&
+                        !hasDot &&
+                        !hasExponent &&
+                        suffix != 'f' &&
+                        suffix != 'u'
                     ) {
                         output.append(".0")
                     }
+                    pendingIdentifier = null
+                }
+
+                character.isWhitespace() -> {
+                    output.append(character)
+                    index++
                 }
 
                 else -> {
+                    pendingIdentifier = null
                     output.append(character)
                     index++
                 }
             }
         }
         return output.toString()
+    }
+
+    /**
+     * В GLSL ES оператор % определён только для целых типов. Старые desktop-
+     * шейдеры встречаются с выражениями `i % 2.0`; они переводятся в mod().
+     */
+    private fun rewriteMixedFloatingModulo(
+        expression: String,
+        integerSymbols: Set<String>,
+    ): String {
+        if ('%' !in expression || integerSymbols.isEmpty()) return expression
+
+        return MIXED_INT_FLOAT_MODULO.replace(expression) { match ->
+            val left = match.groupValues[1]
+            if (left in integerSymbols) {
+                "mod(float($left), ${match.groupValues[2]})"
+            } else {
+                match.value
+            }
+        }
     }
 
     private fun StringBuilder.endsWithIgnoringWhitespace(value: String): Boolean {
@@ -1189,6 +1362,17 @@ class ShaderSourceAdapter {
         val INTEGER_MACRO_DECLARATION = Regex(
             "(?m)^\\s*#define\\s+([A-Za-z_]\\w*)\\s+[+-]?\\d+\\s*(?://.*)?$",
         )
+        val INTEGER_SYMBOL_DECLARATION = Regex(
+            "\\b(?:const\\s+)?(?:int|uint)\\s+([A-Za-z_]\\w*)\\b",
+        )
+        val MIXED_INT_FLOAT_MODULO = Regex(
+            "\\b([A-Za-z_]\\w*)\\s*%\\s*" +
+                "([+-]?(?:\\d+\\.\\d*|\\.\\d+|\\d+[eE][+-]?\\d+)[fF]?)",
+        )
+        val INTEGER_PRESERVING_CONSTRUCTORS = setOf(
+            "float", "int", "uint", "ivec2", "ivec3", "ivec4",
+            "uvec2", "uvec3", "uvec4",
+        )
         val FLOATING_DECLARATION = Regex(
             "(?s)(\\b(?:const\\s+)?(?:float|vec[234]|mat[234])\\s+[A-Za-z_]\\w*\\s*=\\s*)([^;]+)(;)",
         )
@@ -1235,7 +1419,7 @@ class ShaderSourceAdapter {
             "(?<![A-Za-z0-9_])(?:\\d+\\.\\d*|\\.\\d+|\\d+[eE][+-]?\\d+)[fF]?",
         )
         val FLOATING_CONSTRUCTORS = listOf(
-            "float", "vec2", "vec3", "vec4", "mat2", "mat3", "mat4",
+            "vec2", "vec3", "vec4", "mat2", "mat3", "mat4",
         )
         val FLOAT_UNARY_BUILTINS = listOf(
             "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
@@ -1269,6 +1453,23 @@ class ShaderSourceAdapter {
             "cameraRay",
             "getRayDirection",
             "makeCameraRay",
+        )
+
+        val C_STYLE_ARRAY_INITIALIZER = Regex(
+            "\\b([A-Za-z_]\\w*)\\s+([A-Za-z_]\\w*)\\s*\\[\\s*([^]\\n]+)\\s*]\\s*=\\s*\\{",
+        )
+
+        val LEGACY_SAMPLER_BINDINGS = linkedMapOf(
+            "texFFT" to 0,
+            "texFFTSmoothed" to 1,
+            "texFFTIntegrated" to 2,
+            "texPreviousFrame" to 3,
+            "texChecker" to 0,
+            "texNoise" to 0,
+            "texTex1" to 0,
+            "texTex2" to 1,
+            "texTex3" to 2,
+            "texTex4" to 3,
         )
 
         const val LEGACY_TEXTURE_HELPERS = """
