@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shader Player</string>
+    <string name="built_in_shader">Built-in shader</string>
+    <string name="open_shader">Open shader</string>
+    <string name="reload_shader">Reload shader</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="settings">Settings</string>
+    <string name="textures">Textures</string>
+    <string name="texture_channel">iChannel%1$d</string>
+    <string name="select_texture">Select texture</string>
+    <string name="clear">Clear</string>
+    <string name="not_selected">Not selected</string>
+    <string name="player_controls">Player scene controls</string>
+    <string name="player_controls_description">One finger: orbit. Two fingers: pan and zoom. Disable this option when the shader has its own iMouse controls.</string>
+    <string name="show_stats">Show FPS</string>
+    <string name="reset_camera">Reset camera</string>
+    <string name="reset_time">Reset time</string>
+    <string name="shader_error">Shader compilation error</string>
+    <string name="close">Close</string>
+    <string name="fps_format">FPS %.1f · %.2f ms</string>
+    <string name="shader_loaded">Shader loaded</string>
+    <string name="shader_read_error">Unable to read the shader file</string>
+    <string name="texture_read_error">Unable to read the texture</string>
+    <string name="about_limits">Android version supports GLSL ES / ShaderToy. HLSL and Direct3D 12 are not available on Android.</string>
+    <string name="sphere_offset">Sphere vertical offset</string>
+    <string name="enter_fullscreen">Enter fullscreen</string>
+    <string name="exit_fullscreen">Exit fullscreen</string>
+</resources>

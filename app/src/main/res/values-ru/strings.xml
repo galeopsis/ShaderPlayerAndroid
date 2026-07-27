@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shader Player</string>
+    <string name="built_in_shader">Встроенный шейдер</string>
+    <string name="open_shader">Открыть шейдер</string>
+    <string name="reload_shader">Перезагрузить шейдер</string>
+    <string name="pause">Пауза</string>
+    <string name="resume">Продолжить</string>
+    <string name="settings">Настройки</string>
+    <string name="textures">Текстуры</string>
+    <string name="texture_channel">iChannel%1$d</string>
+    <string name="select_texture">Выбрать текстуру</string>
+    <string name="clear">Очистить</string>
+    <string name="not_selected">Не выбрана</string>
+    <string name="player_controls">Управление сценой плеера</string>
+    <string name="player_controls_description">Один палец — orbit. Два пальца — pan и zoom. Отключи настройку, если шейдер использует собственное управление через iMouse.</string>
+    <string name="show_stats">Показывать FPS</string>
+    <string name="reset_camera">Сбросить камеру</string>
+    <string name="reset_time">Сбросить время</string>
+    <string name="shader_error">Ошибка компиляции шейдера</string>
+    <string name="close">Закрыть</string>
+    <string name="fps_format">FPS %.1f · %.2f мс</string>
+    <string name="shader_loaded">Шейдер загружен</string>
+    <string name="shader_read_error">Не удалось прочитать файл шейдера</string>
+    <string name="texture_read_error">Не удалось прочитать текстуру</string>
+    <string name="about_limits">Android-версия поддерживает GLSL ES и ShaderToy. HLSL и Direct3D 12 на Android недоступны.</string>
+    <string name="sphere_offset">Вертикальное смещение сферы</string>
+    <string name="enter_fullscreen">На весь экран</string>
+    <string name="exit_fullscreen">Выйти из полноэкранного режима</string>
+</resources>
